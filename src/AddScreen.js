@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, Image, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { RNTesseractOcr } from 'react-native-tesseract-ocr';
 
 const AddScreen = ({ navigation, route }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState(null);
+  const [scannedText, setScannedText] = useState('');
 
   const takePictureFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -21,8 +23,9 @@ const AddScreen = ({ navigation, route }) => {
       quality: 1,
     });
 
-    if (!result.canceled) {
+    if (!result.cancelled) {
       setImageUri(result.uri);
+      await performOCR(result.uri);
     }
   };
 
@@ -40,18 +43,28 @@ const AddScreen = ({ navigation, route }) => {
       quality: 1,
     });
 
-    if (!result.canceled) {
+    if (!result.cancelled) {
       setImageUri(result.uri);
+      await performOCR(result.uri);
+    }
+  };
+
+  const performOCR = async (uri) => {
+    try {
+      const result = await RNTesseractOcr.recognize(uri, 'LANG_ENGLISH', {});
+      setScannedText(result);
+    } catch (error) {
+      console.error('OCR Error:', error);
     }
   };
 
   const saveBlog = () => {
     const id = Math.random().toString(36).substring(7);
-    const newBlog = { id, title, description, imageUri };
+    const newBlog = { id, title, description, imageUri, scannedText };
 
     if (route.params && route.params.handleAddBlog) {
       route.params.handleAddBlog(newBlog);
-      navigation.navigate('Home'); 
+      navigation.navigate('Home');
     }
   };
 
@@ -82,6 +95,7 @@ const AddScreen = ({ navigation, route }) => {
         color="#00e4d0"
       />
       {imageUri && <Image source={{ uri: imageUri }} style={styles.image} />}
+      {scannedText !== '' && <Text>{scannedText}</Text>}
       <View style={styles.buttonSeparator} />
       <Button
         title="Save and Navigate"
